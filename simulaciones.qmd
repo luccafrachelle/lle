@@ -1,0 +1,342 @@
+---
+title: "Simulaciones y aplicaciones de LLE"
+format: html
+toc : true
+toc-depth: 1
+css: ./themes/theme.scss
+embed-resources: true
+echo: false
+---
+
+# Aplicaciones en MINST
+```{python}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.datasets import fetch_openml
+from sklearn.manifold import LocallyLinearEmbedding
+from sklearn.utils.validation import check_random_state
+import plotly.express as px
+from sim_funs import make_swiss_roll, sample_torus, make_s_curve
+```
+
+```{python}
+X = fetch_openml('mnist_784', version=1).data
+y = fetch_openml('mnist_784', version=1).target.astype(int)
+```
+
+### Sampleo algunos datos
+```{python}
+X = X.sample(n=10000, random_state=42).copy()
+y = y.loc[X.index].copy()
+```
+
+## Algunos Datos
+```{python}
+fig, axes = plt.subplots(2, 5, figsize=(10, 5))
+for i, ax in enumerate(axes.flat):
+    ax.imshow(X.iloc[i].values.reshape(28, 28), cmap='gray')
+    ax.set_title(f'Label: {y.iloc[i]}')
+    ax.axis('off')
+```
+
+## LLE en MINST
+```{python}
+n_neighbors = 12
+n_components = 2
+lle = LocallyLinearEmbedding(n_neighbors=n_neighbors, n_components=n_components, method='standard', random_state=42)
+```
+
+```{python}
+X_lle = lle.fit_transform(X)
+```
+
+```{python}
+plt.figure(figsize=(10, 8))
+scatter = plt.scatter(X_lle[:, 0], X_lle[:, 1], c
+=y, cmap='tab10', s=1)
+plt.colorbar(scatter, ticks=range(10), label='Digit Label')
+plt.title('LLE Projection of MNIST Data')
+plt.xlabel('LLE Component 1')
+plt.ylabel('LLE Component 2')
+plt.show()
+```
+
+## Diferentes n_neighbors
+
+```{python}
+n_neighbors_list = [5, 12, 20, 50]
+
+fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+
+scatter = None 
+
+for n_neighbors, ax in zip(n_neighbors_list, axes.flat):
+    lle = LocallyLinearEmbedding(n_neighbors=n_neighbors, n_components=2, method='standard', random_state=42)
+    X_lle = lle.fit_transform(X)
+    
+    scatter = ax.scatter(
+        X_lle[:, 0], 
+        X_lle[:, 1], 
+        c=y,
+        cmap='tab10',
+        s=1
+    )
+    
+    ax.set_title(f'LLE Projection with n_neighbors={n_neighbors}')
+    ax.set_xlabel('LLE Component 1')
+    ax.set_ylabel('LLE Component 2')
+
+plt.tight_layout(rect=[0, 0, 0.9, 1])
+
+cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7]) 
+
+fig.colorbar(
+    scatter, 
+    cax=cbar_ax, 
+    ticks=range(10), 
+    label='Etiqueta del Dígito',
+    aspect=40 
+)
+
+plt.show()
+```
+
+
+# Swiss Roll
+```{python}
+df = make_swiss_roll(n_samples=5000, noise=0.1, random_state=42)
+```
+
+```{python}
+fig = plt.figure(figsize=(10, 8))
+ax = fig.add_subplot(111, projection='3d')
+scatter = ax.scatter(
+    df[0][:, 0],
+    df[0][:, 1],
+    df[0][:, 2],
+    c=df[1],
+    cmap='Spectral',
+    s=50
+)
+cbar = fig.colorbar(scatter, ax=ax, pad=0.1)
+cbar.set_label('Position along the roll')
+
+ax.view_init(elev=10, azim=70)
+
+ax.set_title('Swiss Roll')
+ax.set_xlabel('X-axis')
+ax.set_ylabel('Y-axis')
+ax.set_zlabel('Z-axis')
+plt.show()
+```
+```{python}
+fig = px.scatter_3d(
+    x=df[0][:, 0],
+    y=df[0][:, 1],
+    z=df[0][:, 2],
+    color=df[1],
+    color_continuous_scale='Spectral',
+    title='Swiss Roll',
+    labels={'x': 'X-axis', 'y': 'Y-axis', 'z': 'Z-axis'}
+)
+
+fig.update_traces(marker=dict(size=2))
+fig.update_coloraxes(colorbar_title='Position along the roll')
+fig.show()
+```
+
+## LLE en Swiss Roll
+
+```{python}
+n_neighbors = 12
+n_components = 2
+lle = LocallyLinearEmbedding(n_neighbors=n_neighbors, n_components=n_components, method='standard')
+X_lle = lle.fit_transform(df[0])
+```
+
+```{python}
+plt.figure(figsize=(10, 8))
+scatter = plt.scatter(X_lle[:, 0], X_lle[:, 1], c =df[1], cmap='Spectral', s=1)
+plt.colorbar(scatter, label='Position along the roll')
+plt.title('LLE Projection of Swiss Roll Data')
+plt.xlabel('LLE Component 1')
+plt.ylabel('LLE Component 2')
+plt.show()
+```
+
+
+# Toros
+
+```{python}
+R_major = 5.0 
+r_minor = 2.0
+N = 5000
+
+df = sample_torus(R_major, r_minor, N)
+```
+
+
+```{python}
+fig = plt.figure(figsize=(10, 8))
+ax = fig.add_subplot(111, projection='3d')
+scatter = ax.scatter(
+    df[:, 0],
+    df[:, 1],
+    df[:, 2],
+    c=df[:, 3],
+    cmap='Spectral',
+    s=50
+)
+
+cbar = fig.colorbar(scatter, ax=ax, pad=0.1)
+cbar.set_label('Color Feature (phi / 2π)')
+ax.set_xlim([-8, 8])
+ax.set_ylim([-8, 8])
+ax.set_zlim(-8, 8)
+ax.set_title('Torus Surface')
+ax.set_xlabel('X-axis')
+ax.set_ylabel('Y-axis')
+ax.set_zlabel('Z-axis')
+plt.show()
+```
+
+```{python}
+fig = px.scatter_3d(
+    x=df[:, 0],
+    y=df[:, 1],
+    z=df[:, 2],
+    title='Torus Surface',
+    labels={'x': 'X-axis', 'y': 'Y-axis', 'z': 'Z-axis'},
+    color=df[:, 3],
+    color_continuous_scale='Spectral',
+
+    
+)
+fig.update_traces(marker=dict(size=2, colorscale='Spectral'))
+fig.show()
+```
+
+## LLE en Toros
+
+```{python}
+n_neighbors = 12
+n_components = 2
+lle = LocallyLinearEmbedding(n_neighbors=n_neighbors, n_components=n_components, method='standard')
+X_lle = lle.fit_transform(df[:, :3])
+```
+
+```{python}
+plt.figure(figsize=(10, 8))
+scatter = plt.scatter(X_lle[:, 0], X_lle[:, 1], c=df[:, 3], cmap='Spectral', s=1)
+plt.colorbar(scatter, label='Color Feature (phi / 2π)')
+plt.title('LLE Projection of Torus Surface Data')
+plt.xlabel('LLE Component 1')
+plt.ylabel('LLE Component 2')
+plt.show()
+```
+
+# S-Curve
+```{python}
+N = 5000
+df = make_s_curve(N)
+```
+
+```{python}
+fig = plt.figure(figsize=(10, 8))
+ax = fig.add_subplot(111, projection='3d')
+scatter = ax.scatter(
+    df[:, 0],
+    df[:, 1],
+    df[:, 2],
+    c=df[:, 3],
+    cmap='Spectral',
+    s=50
+)
+
+cbar = fig.colorbar(scatter, ax=ax, pad=0.1)
+cbar.set_label('Color Feature (normalized t)')
+ax.view_init(elev=10, azim=280)
+
+ax.set_title('S-Curve')
+ax.set_xlabel('X-axis')
+ax.set_ylabel('Y-axis')
+ax.set_zlabel('Z-axis')
+plt.show()
+
+```
+
+```{python}
+fig = px.scatter_3d(
+    x=df[:, 0],
+    y=df[:, 1],
+    z=df[:, 2],
+    title='S-Curve Surface',
+    labels={'x': 'X-axis', 'y': 'Y-axis', 'z': 'Z-axis'},
+    color=df[:, 3],
+    color_continuous_scale='Spectral',
+)
+fig.update_traces(marker=dict(size=2, colorscale='Spectral'))
+fig.show()
+```
+
+
+## LLE en S-Curve
+```{python}
+n_neighbors = 12
+n_components = 2
+lle = LocallyLinearEmbedding(n_neighbors=n_neighbors, n_components=n_components, method='standard')
+X_lle = lle.fit_transform(df[:, :3])
+```
+
+
+```{python}
+plt.figure(figsize=(10, 8))
+scatter = plt.scatter(X_lle[:, 0], X_lle[:, 1], c=df[:, 3], cmap='Spectral', s=1)
+plt.colorbar(scatter, label='Color Feature (normalized t)')
+plt.title('LLE Projection of S-Curve')
+plt.xlabel('LLE Component 1')
+plt.ylabel('LLE Component 2')
+plt.show()
+```
+
+## Cambio de n_neighbors en S-Curve
+
+```{python}
+
+n_neighbors_list = [5, 12, 20, 50]
+
+fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+
+scatter = None
+
+for n_neighbors, ax in zip(n_neighbors_list, axes.flat):
+    lle = LocallyLinearEmbedding(n_neighbors=n_neighbors, n_components=2, method='standard', random_state=42)
+    X_lle = lle.fit_transform(df[:, :3])
+
+    scatter = ax.scatter(
+        X_lle[:, 0],
+        X_lle[:, 1],
+        c=df[:, 3],
+        cmap='Spectral',
+        s=1
+    )
+
+    ax.set_title(f'LLE Projection with n_neighbors={n_neighbors}')
+    ax.set_xlabel('LLE Component 1')
+    ax.set_ylabel('LLE Component 2')
+
+plt.tight_layout(rect=[0, 0, 0.9, 1])
+
+cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])
+
+fig.colorbar(
+    scatter,
+    cax=cbar_ax,
+    label='Color Feature (normalized t)',
+    aspect=40
+)
+
+plt.show()
+
+```
